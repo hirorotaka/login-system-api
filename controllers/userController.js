@@ -123,6 +123,51 @@ class UserController {
       return res.send({ status: 'failed', message: 'ログインできません' });
     }
   };
+
+  static changeUserPassword = async (req, res) => {
+    // リクエストボディからpasswordとpassword_confirmationを取得
+    const { password, password_confirmation } = req.body;
+
+    // passwordまたはpassword_confirmationが存在しない場合、エラーレスポンスを返す
+    if (!password || !password_confirmation) {
+      return res.send({
+        status: 'failed',
+        message: '全てのフィールドが必須です',
+      });
+    }
+
+    // passwordとpassword_confirmationが一致しない場合、エラーレスポンスを返す
+    if (password !== password_confirmation) {
+      return res.send({
+        status: 'failed',
+        message: '新しいパスワードと確認用パスワードが一致しません',
+      });
+    }
+
+    try {
+      // bcryptを使用して新しいパスワードをハッシュ化
+      const salt = await bcrypt.genSalt(10);
+      const newHashPassword = await bcrypt.hash(password, salt);
+
+      // ユーザーのパスワードを更新
+      await UserModel.findByIdAndUpdate(req.user._id, {
+        $set: { password: newHashPassword },
+      });
+
+      // 成功レスポンスを返す
+      return res.send({
+        status: 'success',
+        message: 'パスワードが正常に変更されました',
+      });
+    } catch (error) {
+      // エラーが発生した場合、エラーレスポンスを返す
+      console.log(error);
+      return res.send({
+        status: 'failed',
+        message: 'パスワードの変更に失敗しました',
+      });
+    }
+  };
 }
 
 export default UserController;
