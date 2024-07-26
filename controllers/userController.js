@@ -232,6 +232,69 @@ class UserController {
       });
     }
   };
+
+  // パスワードリセットを処理する静的メソッド
+  static userPasswordReset = async (req, res) => {
+    // リクエストボディから新しいパスワードと確認用パスワードを取得
+    const { password, password_confirmation } = req.body;
+    // リクエストパラメータからユーザーIDとトークンを取得
+    const { id, token } = req.params;
+
+    // ユーザーIDに基づいてユーザーを検索
+    const user = await UserModel.findById(id);
+    if (!user) {
+      return res.send({
+        status: 'failed',
+        message: 'ユーザーが見つかりません',
+      });
+    }
+
+    // 新しいシークレットを生成（ユーザーIDとJWTシークレットキーを結合）
+    const new_secret = user._id + process.env.JWT_SECRET_KEY;
+
+    try {
+      // トークンを検証
+      jwt.verify(token, new_secret);
+    } catch (error) {
+      // エラーが発生した場合
+      // エラーをコンソールに出力
+      console.log(error);
+      // 無効なトークンに関する失敗レスポンスを送信
+      return res.send({ status: 'failed', message: '無効なトークンです' });
+    }
+
+    // パスワードまたは確認用パスワードが存在しない場合、失敗レスポンスを送信
+    if (!password || !password_confirmation) {
+      return res.send({
+        status: 'failed',
+        message: 'すべてのフィールドが必須です',
+      });
+    }
+
+    // パスワードと確認用パスワードが一致しない場合
+    if (password !== password_confirmation) {
+      // 失敗レスポンスを送信
+      return res.send({
+        status: 'failed',
+        message: '新しいパスワードと確認用パスワードが一致しません',
+      });
+    }
+
+    // パスワードをハッシュ化
+    const salt = await bcrypt.genSalt(10);
+    const newHashPassword = await bcrypt.hash(password, salt);
+
+    // ユーザーのパスワードを更新
+    await UserModel.findByIdAndUpdate(user._id, {
+      $set: { password: newHashPassword },
+    });
+
+    // 成功レスポンスを送信
+    res.send({
+      status: 'success',
+      message: 'パスワードが正常にリセットされました',
+    });
+  };
 }
 
 export default UserController;
