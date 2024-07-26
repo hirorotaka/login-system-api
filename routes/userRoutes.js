@@ -6,12 +6,17 @@ import checkUserAuth from '../middlewares/auth-middleware.js';
 // Public Routes
 router.post('/register', UserController.userRegistration);
 router.post('/login', UserController.userLogin);
-
+router.post(
+  '/send-reset-password-email',
+  UserController.sendUserPasswordResetEmail
+);
 // Protected Routes
 router.post(
   '/changepassword',
   checkUserAuth,
   UserController.changeUserPassword
 );
+
+router.get('/loggeduser', checkUserAuth, UserController.loggedUser);
 
 export default router;

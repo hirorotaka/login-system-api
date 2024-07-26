@@ -124,6 +124,10 @@ class UserController {
     }
   };
 
+  static loggedUser = async (req, res) => {
+    res.send({ user: req.user });
+  };
+
   static changeUserPassword = async (req, res) => {
     // リクエストボディからpasswordとpassword_confirmationを取得
     const { password, password_confirmation } = req.body;
@@ -165,6 +169,66 @@ class UserController {
       return res.send({
         status: 'failed',
         message: 'パスワードの変更に失敗しました',
+      });
+    }
+  };
+
+  // パスワードリセットメールを送信する静的メソッド
+  static sendUserPasswordResetEmail = async (req, res) => {
+    // リクエストボディからメールアドレスを取得
+    const { email } = req.body;
+
+    // メールアドレスが存在しない場合、失敗レスポンスを送信して早期リターン
+    if (!email) {
+      return res.send({ status: '失敗', message: 'メールアドレスは必須です' });
+    }
+
+    try {
+      // データベースからメールアドレスに一致するユーザーを検索
+      const user = await UserModel.findOne({ email: email });
+
+      // ユーザーが存在しない場合、失敗レスポンスを送信して早期リターン
+      if (!user) {
+        return res.send({
+          status: '失敗',
+          message: 'メールアドレスが存在しません',
+        });
+      }
+
+      // ユーザーIDとシークレットキーを組み合わせてシークレットを生成
+      const secret = user._id + process.env.JWT_SECRET_KEY;
+      // シークレットを使用してJWTトークンを生成（有効期限は15分）
+      const token = jwt.sign({ userID: user._id }, secret, {
+        expiresIn: '15m',
+      });
+      // パスワードリセットリンクを生成
+      const link = `http://localhost:5050/api/user/reset/${user._id}/${token}`;
+      // リンクをコンソールに出力（デバッグ用）
+      console.log(link);
+
+      // メールを送信
+      // await transporter.sendMail({
+      //   from: process.env.EMAIL_FROM, // 送信元のメールアドレス
+      //   to: user.email, // 送信先のメールアドレス
+      //   subject: 'GeekShop - パスワードリセットリンク', // メールの件名
+      //   html: `パスワードをリセットするには、<a href=${link}>ここをクリック</a>してください`, // メールの本文（HTML形式）
+      // });
+
+      // 成功レスポンスを送信
+      return res.send({
+        status: '成功',
+        message:
+          'パスワードリセットのメールを送信しました。メールをご確認ください',
+      });
+    } catch (error) {
+      console.error(
+        'パスワードリセットメールの送信中にエラーが発生しました:',
+        error
+      );
+      // エラーレスポンスを送信
+      return res.status(500).send({
+        status: '失敗',
+        message: 'パスワードリセットメールの送信中にエラーが発生しました',
       });
     }
   };
