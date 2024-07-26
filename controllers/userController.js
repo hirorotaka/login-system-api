@@ -41,13 +41,13 @@ class UserController {
         });
         // ユーザードキュメントを保存
         await doc.save();
-        // 保存されたユーザーを検索
+        // 保存されたユーザーを検索(保存されたユーザーのIDをtokenに使用するため)
         const saved_user = await UserModel.findOne({ email: email });
         // JWTトークンを生成
         const token = jwt.sign(
           { userID: saved_user._id },
           process.env.JWT_SECRET_KEY,
-          { expiresIn: '5d' }
+          { expiresIn: '1h' }
         );
         // 成功レスポンスを送信
         res.status(201).send({
@@ -67,6 +67,60 @@ class UserController {
         status: 'failed',
         message: 'パスワードと確認用パスワードが一致しません',
       });
+    }
+  };
+
+  static userLogin = async (req, res) => {
+    try {
+      // リクエストボディからemailとpasswordを取得
+      const { email, password } = req.body;
+
+      // emailまたはpasswordが存在しない場合、エラーレスポンスを返す
+      if (!email || !password) {
+        return res.send({
+          status: 'failed',
+          message: '全てのフィールドが必須です',
+        });
+      }
+
+      // データベースからemailが一致するユーザーを検索
+      const user = await UserModel.findOne({ email: email });
+
+      // ユーザーが存在しない場合、エラーレスポンスを返す
+      if (user === null) {
+        return res.send({
+          status: 'failed',
+          message: '登録されていないユーザーです',
+        });
+      }
+
+      // パスワードの一致を検証
+      const isMatch = await bcrypt.compare(password, user.password);
+
+      // emailまたはパスワードが一致しない場合、エラーレスポンスを返す
+      if (user.email !== email || !isMatch) {
+        return res.send({
+          status: 'failed',
+          message: 'メールアドレスまたはパスワードが無効です',
+        });
+      }
+
+      // JWTトークンを生成
+      const token = jwt.sign({ userID: user._id }, process.env.JWT_SECRET_KEY, {
+        expiresIn: '1h',
+      });
+
+      // ログイン成功のレスポンスを送信
+      return res.send({
+        status: 'success',
+        message: 'ログイン成功',
+        token: token,
+      });
+    } catch (error) {
+      // エラーをコンソールに出力
+      console.log(error);
+      // ログインできない場合のレスポンスを送信
+      return res.send({ status: 'failed', message: 'ログインできません' });
     }
   };
 }
