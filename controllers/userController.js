@@ -2,6 +2,7 @@
 import UserModel from '../models/User.js';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import transporter from '../config/emailConfig.js';
 
 // UserControllerクラスを定義
 class UserController {
@@ -203,16 +204,14 @@ class UserController {
       });
       // パスワードリセットリンクを生成
       const link = `http://localhost:5050/api/user/reset/${user._id}/${token}`;
-      // リンクをコンソールに出力（デバッグ用）
-      console.log(link);
 
       // メールを送信
-      // await transporter.sendMail({
-      //   from: process.env.EMAIL_FROM, // 送信元のメールアドレス
-      //   to: user.email, // 送信先のメールアドレス
-      //   subject: 'GeekShop - パスワードリセットリンク', // メールの件名
-      //   html: `パスワードをリセットするには、<a href=${link}>ここをクリック</a>してください`, // メールの本文（HTML形式）
-      // });
+      await transporter.sendMail({
+        from: process.env.EMAIL_FROM, // 送信元のメールアドレス
+        to: email, // 送信先のメールアドレス
+        subject: 'GeekShop - パスワードリセットリンク', // メールの件名
+        html: `パスワードをリセットするには、<a href=${link}>ここをクリック</a>してください`, // メールの本文（HTML形式）
+      });
 
       // 成功レスポンスを送信
       return res.send({
